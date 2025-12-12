@@ -39,6 +39,7 @@
 static unsigned char mem_pool[MEM_SIZE]; // 800 바이트 크기의 정적 메모리 배열
 static unsigned char *heap_listp; // 힙의 시작점을 가리킬 포인터
 
+typedef int data_t;
 
 /* 함수 구현 */
 void init_mem(){
@@ -58,47 +59,62 @@ void init_mem(){
     *(unsigned long*)(footer_pos + (WSIZE)) = PACK(0, 1, 0); // Epilogue Header: footer + 8
 }
 
-unsigned char *mm_alloc(size_t size){
+unsigned char *mm_alloc(size_t size){//구현완
     size_t asize; // 조정된 블록 사이즈(헤더 + 정렬 패딩)
     char *bp; // 현재 블록의 payload 시작점
-    // 1. 0바이트 요청 무시
+
+    // 1. size == 0 인 경우 NULL 처리
     if (size == 0) return NULL;
 
     // 2. 사이즈 조정 (Align)
-    // - 헤더(8바이트)를 더하고, 16바이트 배수로 올림(Round up)
-    // - 예: size가 1이면 asize는 16이 되어야 함
+    asize = round_up(size + WSIZE, DSIZE);
     
     // 3. 가용 리스트 탐색 (Find Fit)
-    // - heap_listp부터 시작해서 에필로그 헤더(Size 0)가 나올 때까지 반복
-    // - 조건: (해당 블록이 Free) && (블록 사이즈 >= asize)
-    
-    // 4. 찾았으면? -> 배치(Place)
-    // - 만약 남는 공간이 충분히 크면 쪼갠다 (Split)
-    // - 아니면 통째로 준다
-    // - 리턴: 블록의 포인터(bp)
-    
-    // 5. 못 찾았으면? -> NULL 리턴 (정적 배열이라 늘릴 수 없음)
-    return NULL;
+    bp = find_fit(asize);
 
+    if(bp == NULL){
+        return NULL
+    }
 
+    // 4. 찾았을 경우 배치(Place)
+    place(bp, asize);
+
+    return bp;
 }
 
 void mm_free(unsigned char *p){
 
 }
 
-void show_mm(){
+void show_mm(){//출력하는것
 
 
 }
 
-static void *find_fit(size_t asize){
-    // Todo: 빈 블록을 찾는 함수
-        // heap_listp부터 for 문으로 다음 블록으로 이동하면서 탐색
-        // 적절한 블록을 찾으면 그 주소 반환, 끝까지 못 찾으면 NULL
+static void *find_fit(size_t asize){//구현완
+    void* bp;//block pointer 선언
+
+    for(bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)){
+        if(GET_ALLOC(HDRP(bp))==0 && GET_SIZE(HDRP(bp))>=asize){
+            return bp;
+        }
+    }
+    return NULL;
+    //헤더정보를가지고 할당한 사이즈정보, 하위 첫번째 비트(할당여부)를 확인하여 진행
 }
 
 static void place(void *bp, size_t asize){
+    size_t csize = GET_SIZE(HDRP(bp)); // current block size를 담을 변수
+    void* next_bp = NEXT_BLKP(HDRP(bp));
+    int isPrevAlloc = GET_PREV_ALLOC(HDRP(bp));
+    
+    if(csize - asize<16){
+        PUT(HDRP(bp), PACK(csize, 1, isPrevAlloc)); //할당되었다고 업데이트하기
+        PUT(HDRP(next_bp), PACK(GET_SIZE(HDRP(next_bp)), GET_ALLOC(HDRP(next_bp)), 2))//다음 블록의 헤더도 이전 블록이 할당되었다고 업데이트하기
+    }
+    else{
+        PUT(HDRP(bp),)
+    }
     /* 
     Todo
         1. 현재 블록의 전체 크기 가져오기
@@ -107,11 +123,16 @@ static void place(void *bp, size_t asize){
             -> 뒷부분은 Free(Header + Footer 씀, NextBlock의 Prev_Alloc 0으로 설정)
         3. 아니면?
             -> 그냥 통째로 할당 상태로 변경
-    
     */
+    // - 만약 남는 공간이 충분히 크면 쪼갠다 (Split)
+    // - 아니면 통째로 준다
+    // - 리턴: 블록의 포인터(bp)
+
 }
 
-
+int round_up(int n, int m){//구현완
+    return ((n+m-1)/m)*m;
+}
 
 #define DO_SHOW(cmd) printf("<%s>\n", #cmd); (cmd); show_mm()
 int main(){
