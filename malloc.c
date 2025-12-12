@@ -33,7 +33,7 @@
 // 다음 블록과 이전 블록의 포인터(bp) 반환
 #define NEXT_BLKP(bp)   ((char *)(bp) + GET_SIZE(HDRP(bp)))
 // 주의: PREV_BLKP는 이전 블록이 Free 상태일 때만 유효함 (Footer를 통해 이동)
-#define PREV_BLKP(bp)   ((char *)(bp) - GET_SIZE(((char *)(bp) - WSIZE)))
+#define PREV_BLKP(bp)   ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
 
 /* 전약 변수 설정*/
 static unsigned char mem_pool[MEM_SIZE]; // 800 바이트 크기의 정적 메모리 배열
@@ -43,23 +43,20 @@ typedef int data_t;
 
 /* 함수 구현 */
 void init_mem(){
-    // 1. 초기 힙 포인터 위치 잡기 
-    // (배열의 시작주소는 정렬이 안 되어 있을 수 있으므로 정렬을 맞춰주는 작업이 필요할 수 있음)
-    // 하지만 보통 배열 선언 시 aligned 속성을 주거나, 여기서 오프셋을 조정함.
+    heap_listp = mem_pool;
+    *(unsigned long*)(heap_listp) = 0; // 0-8바이트: 패딩 채우기
+    *(unsigned long*)(heap_listp + WSIZE) = PACK(DSIZE, 1, 2); // 8-15바이트: Prologue Block 헤더 채우기
+    *(unsigned long*)(heap_listp + (2*WSIZE)) = PACK(DSIZE, 1, 2); // 8-15바이트: Prologue Block 푸터 채우기
+
+    heap_listp += (2*WSIZE); // heap_listp는 프롤로그 푸터를 가리킴
+
+    size_t init_size = MEM_SIZE - (4*WSIZE);
+    *(unsigned long*)(heap_listp + (WSIZE)) = PACK(init_size, 0, 2); // initial Free Block 생성
     
-    // 2. 프롤로그(Prologue) 블록 생성
-    // - 힙의 시작을 알리는 16바이트짜리 가짜 블록 (Header + Footer)
-    // - 할당된 상태(Alloc=1)로 표시해서 앞으로 넘어가지 못하게 막음
-    
-    // 3. 거대한 Free 블록 생성 (초기 상태)
-    // - 남은 메모리 전체를 하나의 큰 Free 블록으로 만듦
-    // - Header 작성 (Size = 남은크기, Alloc = 0, Prev_Alloc = 1)
-    // - Footer 작성 (Header와 동일)
-    
-    // 4. 에필로그(Epilogue) 블록 생성
-    // - 힙의 끝을 알리는 헤더 (Size = 0, Alloc = 1)
-    
-    // 5. heap_listp를 프롤로그 블록 다음(Payload 시작)으로 설정
+    unsigned char *footer_pos = (heap_listp + (WSIZE)) + init_size - WSIZE; // 792-799 번지 앞
+    *(unsigned long*)(footer_pos) = PACK(init_size, 0, 2);
+
+    *(unsigned long*)(footer_pos + (WSIZE)) = PACK(0, 1, 0); // Epilogue Header: footer + 8
 }
 
 unsigned char *mm_alloc(size_t size){//구현완
@@ -140,7 +137,7 @@ int round_up(int n, int m){//구현완
 #define DO_SHOW(cmd) printf("<%s>\n", #cmd); (cmd); show_mm()
 int main(){
     unsigned char *p[10];
-    DO_SHOW(mm_init());
+    DO_SHOW(init_mem());
     DO_SHOW(p[0] = mm_alloc(100));
     DO_SHOW(p[1] = mm_alloc(300));
     DO_SHOW(p[2] = mm_alloc(70));
