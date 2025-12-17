@@ -48,9 +48,9 @@ int round_up(int n, int m);
 /* 함수 구현 */
 void init_mem(){
     heap_listp = mem_pool;
-    *(unsigned long*)(heap_listp) = 0; // 0-8바이트: 패딩 채우기
+    *(unsigned long*)(heap_listp) = 0; // 0-7바이트: 패딩 채우기
     *(unsigned long*)(heap_listp + WSIZE) = PACK(DSIZE, 1, 2); // 8-15바이트: Prologue Block 헤더 채우기
-    *(unsigned long*)(heap_listp + (2*WSIZE)) = PACK(DSIZE, 1, 2); // 8-15바이트: Prologue Block 푸터 채우기
+    *(unsigned long*)(heap_listp + (2*WSIZE)) = PACK(DSIZE, 1, 2); // 16-23바이트: Prologue Block 푸터 채우기
 
     heap_listp += (2*WSIZE); // heap_listp는 프롤로그 푸터를 가리킴
 
