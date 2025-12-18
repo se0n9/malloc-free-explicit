@@ -119,11 +119,11 @@ char *coalesce(char *p){
     size_t size = GET_SIZE(HDRP(p));
     int prev_alloc = 0;
     // Case 1(Default): 앞 할당O, 뒤는 free된 경우
-    if(GET_PREV_ALLOC(current_hdrp) == 1 && GET_ALLOC(HDRP(next_bp)) == 1){
+    if(GET_PREV_ALLOC(current_hdrp) == 2 && GET_ALLOC(HDRP(next_bp)) == 1){
         return p;
     } 
     // Case 2: 앞 블록은 할당O, 뒤 블록은 free된 경우
-    else if(GET_PREV_ALLOC(current_hdrp) == 1 && GET_ALLOC(HDRP(next_bp)) == 0){
+    else if(GET_PREV_ALLOC(current_hdrp) == 2 && GET_ALLOC(HDRP(next_bp)) == 0){
         size += GET_SIZE(HDRP(next_bp)); // size += next_size
         prev_alloc = GET_PREV_ALLOC(HDRP(p));
         PUT(current_hdrp, PACK(size, 0, prev_alloc)); // 현재 헤더 위치에 크기 갱신
@@ -131,14 +131,14 @@ char *coalesce(char *p){
         return p;
     }
     // Case 3: 앞 블록은 free, 뒤는 할당된 상태인 경우
-    else if(GET_PREV_ALLOC(current_hdrp) == 0 && GET_ALLOC(HDRP(next_bp)) == 1){
+    else if(GET_PREV_ALLOC(current_hdrp) != 2 && GET_ALLOC(HDRP(next_bp)) == 1){
         char *prev_bp = PREV_BLKP(p);
-        char *prev_footer = (p - WSIZE); // 이전 블록의 푸터 포인터
-        size += GET_SIZE(prev_footer);
+        
+        size += GET_SIZE(HDRP(prev_bp));
         prev_alloc = GET_PREV_ALLOC(HDRP(prev_bp)); // 앞 블록의 prev_alloc 비트
         PUT(HDRP(prev_bp), PACK(size, 0, prev_alloc)); //이전 블록의 헤더 갱신
         PUT(FTRP(p), PACK(size, 0, prev_alloc)); // 현재 블록의 푸터 갱신
-        p = (HDRP(prev_bp) + WSIZE); // p를 이전 블록의 페이로드를 가리키도록 갱신
+        p = prev_bp; // p를 이전 블록의 페이로드를 가리키도록 갱신
         return p;
     }
     //Case 4: 앞, 뒤 블록 모두 free되어 있는 경우
@@ -153,9 +153,30 @@ char *coalesce(char *p){
     }
 }
 
-void show_mm(){//출력하는것
+void show_mm(){
+    //출력 순서: 블록 일련번호, 블록 메모리 word #(1 word = 8 bytes), 블록 헤더 정도, 블록 footer 정보
+    char *bp = heap_listp;
+    int cnt = 0;
+    int word_idx = 0;
 
-
+    printf("=================\n");
+    while(GET_SIZE(HDRP(bp)) > 0){
+        int size = GET_SIZE(HDRP(bp));
+        int is_alloc = GET_ALLOC(HDRP(bp));
+        int end_word = word_idx + (size / WSIZE);
+        printf("%2d ( %d-%d ) Block header: size=%d, alloc=%d ", cnt, word_idx, end_word, size, is_alloc);
+        if(!is_alloc){
+            int ft_size = GET_SIZE(FTRP(bp));
+            int ft_is_alloc = GET_ALLOC(FTRP(bp));
+            printf("/ footer: size=%d, alloc=%d\n", ft_size, ft_is_alloc);
+        } else{
+            printf("\n");
+        }
+        word_idx += (size / WSIZE);
+        cnt++;
+        bp = NEXT_BLKP(bp);
+    }
+    printf("-----------------\n");
 }
 
 static void *find_fit(size_t asize){//구현완
