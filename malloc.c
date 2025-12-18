@@ -120,11 +120,14 @@ char *coalesce(char *p){
     int prev_alloc = 0;
     // Case 1(Default): 앞 할당O, 뒤는 free된 경우
     if(GET_PREV_ALLOC(current_hdrp) == 2 && GET_ALLOC(HDRP(next_bp)) == 1){
+        printf("free a block %lu size => No merging.\n", size);
         return p;
     } 
     // Case 2: 앞 블록은 할당O, 뒤 블록은 free된 경우
     else if(GET_PREV_ALLOC(current_hdrp) == 2 && GET_ALLOC(HDRP(next_bp)) == 0){
-        size += GET_SIZE(HDRP(next_bp)); // size += next_size
+        size_t next_size = GET_SIZE(HDRP(next_bp));
+        printf("free a block %lu size => merging next block(%lu) = %lu\n", size, next_size, size+next_size);
+        size += next_size; // size += next_size
         prev_alloc = GET_PREV_ALLOC(HDRP(p));
         PUT(current_hdrp, PACK(size, 0, prev_alloc)); // 현재 헤더 위치에 크기 갱신
         PUT(FTRP(next_bp), PACK(size, 0, prev_alloc));
@@ -133,7 +136,8 @@ char *coalesce(char *p){
     // Case 3: 앞 블록은 free, 뒤는 할당된 상태인 경우
     else if(GET_PREV_ALLOC(current_hdrp) != 2 && GET_ALLOC(HDRP(next_bp)) == 1){
         char *prev_bp = PREV_BLKP(p);
-        
+        size_t prev_size = GET_SIZE(HDRP(prev_bp));
+        printf("free a block %lu size => merging prev block(%lu) = %lu\n", size, prev_size, size+prev_size);
         size += GET_SIZE(HDRP(prev_bp));
         prev_alloc = GET_PREV_ALLOC(HDRP(prev_bp)); // 앞 블록의 prev_alloc 비트
         PUT(HDRP(prev_bp), PACK(size, 0, prev_alloc)); //이전 블록의 헤더 갱신
@@ -144,6 +148,9 @@ char *coalesce(char *p){
     //Case 4: 앞, 뒤 블록 모두 free되어 있는 경우
     else {
         char *prev_bp = PREV_BLKP(p);
+        size_t prev_size = GET_SIZE(HDRP(prev_bp));
+        size_t next_size = GET_SIZE(HDRP(next_bp));
+        printf("free a block %lu size => merging prev block(%lu) + next block(%lu) = %lu\n", size, prev_size, next_size, size+prev_size+next_size);
         size = (GET_SIZE(HDRP(prev_bp)) + GET_SIZE(current_hdrp) + GET_SIZE(HDRP(next_bp))); // 이전+현재+다음 블록 크기 다 더하기
         prev_alloc = GET_PREV_ALLOC(HDRP(prev_bp)); // 이전 블록이 갖고있던 prev_alloc 정보 저장
         PUT(HDRP(prev_bp), PACK(size, 0, prev_alloc)); // 이전 블록 헤더 갱신
