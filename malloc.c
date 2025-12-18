@@ -62,6 +62,10 @@ void init_mem(){
     *(unsigned long*)(footer_pos) = PACK(init_size, 0, 2);
 
     *(unsigned long*)(footer_pos + (WSIZE)) = PACK(0, 1, 0); // Epilogue Header: footer + 8
+    char *head_end = (char*)heap_listp + 800;
+    int num_word = ((long)head_end - (long)heap_listp) / WSIZE;
+    printf("size of dsize = %d, size of word = %d, MIN_BLOCK_SIZE = %d\n", DSIZE, WSIZE, 16);
+    printf("head_start=%p, SIZE=%d, end=%p (end-start)=%d\n", heap_listp, MEM_SIZE, head_end, num_word);
 }
 
 char *mm_alloc(size_t size){//구현완
