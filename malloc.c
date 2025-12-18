@@ -36,14 +36,15 @@
 #define PREV_BLKP(bp)   ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
 
 /* 전약 변수 설정*/
-static unsigned char mem_pool[MEM_SIZE]; // 800 바이트 크기의 정적 메모리 배열
-static unsigned char *heap_listp; // 힙의 시작점을 가리킬 포인터
+static char mem_pool[MEM_SIZE]; // 800 바이트 크기의 정적 메모리 배열
+static char *heap_listp; // 힙의 시작점을 가리킬 포인터
 
 typedef int data_t;
 
 static void *find_fit(size_t asize);//함수 프로토타입
 static void place(void *bp, size_t asize);
 int round_up(int n, int m);
+char *coalesce(char *p);
 
 /* 함수 구현 */
 void init_mem(){
@@ -57,13 +58,13 @@ void init_mem(){
     size_t init_size = MEM_SIZE - (4*WSIZE);
     *(unsigned long*)(heap_listp + (WSIZE)) = PACK(init_size, 0, 2); // initial Free Block 생성
     
-    unsigned char *footer_pos = (heap_listp + (WSIZE)) + init_size - WSIZE; // 792-799 번지 앞
+    char *footer_pos = (heap_listp + (WSIZE)) + init_size - WSIZE; // 792-799 번지 앞
     *(unsigned long*)(footer_pos) = PACK(init_size, 0, 2);
 
     *(unsigned long*)(footer_pos + (WSIZE)) = PACK(0, 1, 0); // Epilogue Header: footer + 8
 }
 
-unsigned char *mm_alloc(size_t size){//구현완
+char *mm_alloc(size_t size){//구현완
     size_t asize; // 조정된 블록 사이즈(헤더 + 정렬 패딩)
     char *bp; // 현재 블록의 payload 시작점
 
@@ -83,11 +84,69 @@ unsigned char *mm_alloc(size_t size){//구현완
     // 4. 찾았을 경우 배치(Place)
     place(bp, asize);
 
-    return (unsigned char*)bp;
+    return bp;
 }
 
-void mm_free(unsigned char *p){
+void mm_free(char *p){
 
+    if(p == NULL){
+        return;
+    }
+    // 현재 헤더의 alloc 업데이트, 푸터 쓰기 -> 새로운 헤더로 덮어씌우기
+    size_t size = GET_SIZE(HDRP(p)); 
+    int prev_alloc = GET_PREV_ALLOC(HDRP(p));
+    PUT(HDRP(p), PACK(size, 0, prev_alloc)); // 헤더 갱신
+    PUT(FTRP(p), PACK(size, 0, prev_alloc)); // 푸터 생성
+
+    // 다음 블록의 prev_alloc을 0으로 갱신
+    void *next_bp = NEXT_BLKP(p);
+    char *next_hdrp = HDRP(next_bp);
+    size_t next_size = GET_SIZE(next_hdrp);
+    int current_alloc_next = GET_ALLOC(next_hdrp);
+    PUT(next_hdrp, PACK(next_size, current_alloc_next, 0));
+
+    coalesce(p);
+}
+
+char *coalesce(char *p){
+    char *next_bp = NEXT_BLKP(p);
+    char *current_hdrp = HDRP(p);
+
+    size_t size = GET_SIZE(HDRP(p));
+    int prev_alloc = 0;
+    // Case 1(Default): 앞 할당O, 뒤는 free된 경우
+    if(GET_PREV_ALLOC(current_hdrp) == 1 && GET_ALLOC(HDRP(next_bp)) == 1){
+        return p;
+    } 
+    // Case 2: 앞 블록은 할당O, 뒤 블록은 free된 경우
+    else if(GET_PREV_ALLOC(current_hdrp) == 1 && GET_ALLOC(HDRP(next_bp)) == 0){
+        size += GET_SIZE(HDRP(next_bp)); // size += next_size
+        prev_alloc = GET_PREV_ALLOC(HDRP(p));
+        PUT(current_hdrp, PACK(size, 0, prev_alloc)); // 현재 헤더 위치에 크기 갱신
+        PUT(FTRP(next_bp), PACK(size, 0, prev_alloc));
+        return p;
+    }
+    // Case 3: 앞 블록은 free, 뒤는 할당된 상태인 경우
+    else if(GET_PREV_ALLOC(current_hdrp) == 0 && GET_ALLOC(HDRP(next_bp)) == 1){
+        char *prev_bp = PREV_BLKP(p);
+        char *prev_footer = (p - WSIZE); // 이전 블록의 푸터 포인터
+        size += GET_SIZE(prev_footer);
+        prev_alloc = GET_PREV_ALLOC(HDRP(prev_bp)); // 앞 블록의 prev_alloc 비트
+        PUT(HDRP(prev_bp), PACK(size, 0, prev_alloc)); //이전 블록의 헤더 갱신
+        PUT(FTRP(p), PACK(size, 0, prev_alloc)); // 현재 블록의 푸터 갱신
+        p = (HDRP(prev_bp) + WSIZE); // p를 이전 블록의 페이로드를 가리키도록 갱신
+        return p;
+    }
+    //Case 4: 앞, 뒤 블록 모두 free되어 있는 경우
+    else {
+        char *prev_bp = PREV_BLKP(p);
+        size = (GET_SIZE(HDRP(prev_bp)) + GET_SIZE(current_hdrp) + GET_SIZE(HDRP(next_bp))); // 이전+현재+다음 블록 크기 다 더하기
+        prev_alloc = GET_PREV_ALLOC(HDRP(prev_bp)); // 이전 블록이 갖고있던 prev_alloc 정보 저장
+        PUT(HDRP(prev_bp), PACK(size, 0, prev_alloc)); // 이전 블록 헤더 갱신
+        PUT(FTRP(next_bp), PACK(size, 0, prev_alloc)); // 다음 블록의 푸터에 전체 크기 쓰기 
+        p = (HDRP(prev_bp) + WSIZE);
+        return p; 
+    }
 }
 
 void show_mm(){//출력하는것
@@ -131,20 +190,20 @@ int round_up(int n, int m){//구현완
 
 #define DO_SHOW(cmd) printf("<%s>\n", #cmd); (cmd); show_mm()
 int main(){
-    unsigned char *p[10];
+    char *p[10];
     DO_SHOW(init_mem());
     DO_SHOW(p[0] = mm_alloc(100));
     DO_SHOW(p[1] = mm_alloc(300));
     DO_SHOW(p[2] = mm_alloc(70));
     DO_SHOW(p[3] = mm_alloc(180));
-    //DO_SHOW(mm_free(p[2]));
-    //DO_SHOW(mm_free(p[3]));
+    DO_SHOW(mm_free(p[2]));
+    DO_SHOW(mm_free(p[3]));
     DO_SHOW(p[4]= mm_alloc(50));
-    //DO_SHOW(mm_free(p[0]));
-    //DO_SHOW(mm_free(p[1]));
+    DO_SHOW(mm_free(p[0]));
+    DO_SHOW(mm_free(p[1]));
     DO_SHOW(p[5] = mm_alloc(120));
-    //DO_SHOW(mm_free(p[4]));
-    //DO_SHOW(mm_free(p[5]));
+    DO_SHOW(mm_free(p[4]));
+    DO_SHOW(mm_free(p[5]));
 
 
     return 0;
