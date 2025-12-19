@@ -44,6 +44,8 @@
 #define GET_PRED(bp) (*(char **)(PRED_PTR(bp)))
 #define GET_SUCC(bp) (*(char **)(SUCC_PTR(bp)))
 
+#define MIN_BLOCK_SIZE (4 * WSIZE) // 기본 블록 사이즈: 32바이트
+
 /* 전역 변수 설정*/
 static char mem_pool[MEM_SIZE]; // 800 바이트 크기의 정적 메모리 배열
 static char *heap_listp; // 힙의 시작점을 가리킬 포인터
@@ -57,7 +59,7 @@ int round_up(int n, int m);
 char *coalesce(char *p);
 
 void insert_node(char *bp){
-    
+
 }
 
 
@@ -206,7 +208,7 @@ void show_mm(){
 static void *find_fit(size_t asize){//구현완
     void* bp;//block pointer 선언
 
-    for(bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)){
+    for(bp = free_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)){
         if(GET_ALLOC(HDRP(bp))==0 && GET_SIZE(HDRP(bp))>=asize){
             return bp;
         }
@@ -220,7 +222,7 @@ static void place(void *bp, size_t asize){
     void* next_bp = NEXT_BLKP(bp); //블록 포인터를 기존 블록 사이즈 기준의 다음 블록의 헤더로 이동
     int isPrevAlloc = GET_PREV_ALLOC(HDRP(bp));
     
-    if(csize - asize<16){
+    if(csize - asize<32){
         PUT(HDRP(bp), PACK(csize, 1, isPrevAlloc)); //할당되었다고 업데이트하기
         PUT(HDRP(next_bp), PACK(GET_SIZE(HDRP(next_bp)), GET_ALLOC(HDRP(next_bp)), 2));//다음 블록의 헤더도 이전 블록이 할당되었다고 업데이트하기
     }
