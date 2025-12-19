@@ -70,22 +70,19 @@ void insert_node(char *bp){
 }
 
 
-void delete_node(char *bp){//prev pointer와, next pointer를 변수에 저장해 놓음.
-    char* prev_bp = GET_SUCC(bp);
+void delete_node(char *bp){ 
+    char* prev_bp = GET_PRED(bp);
     char* next_bp = GET_SUCC(bp);
-
-    if(GET_PRED(bp)==NULL){
-        free_listp = GET_SUCC(bp); //prev가 NULL이라면(리스트의 처음이라면) free_listp가 next node를 가리키게 설정.
+    
+    if(prev_bp == NULL){
+        free_listp = next_bp; // 새 블록의 SUCC를 현재 free_listp로 설정한다.
+         
     }
-    else{//prev가 null이 아니라면, prev가 next를 가리키도록 함.
-        GET_PRED(bp) = next_bp;
+    else{
+        PUT(SUCC_PTR(prev_bp), next_bp); //prev가 NULL이라면(리스트의 처음이라면) free_listp가 next node를 가리키게 설정.
     }
-
-    if(GET_SUCC(bp) == NULL){
-        GET_PRED(bp) = NULL; //next가 NULL이라면 prev를 NULL로 설정하기
-    }
-    else{//next가 NULL이 아니라면, prev node가 next node를 가리키게 설정.
-        GET_SUCC(bp) = prev_bp;
+    if(next_bp != NULL){
+        PUT(PRED_PTR(next_bp), prev_bp); //next가 NULL이 아니라면, prev node가 next node를 가리키게 설정.
     }
 }
 
