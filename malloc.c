@@ -59,7 +59,14 @@ int round_up(int n, int m);
 char *coalesce(char *p);
 
 void insert_node(char *bp){
+    GET_SUCC(bp) (*(char **)(SUCC_PTR(bp))) = free_listp;
+    GET_PRED(bp) (*(char **)(PRED_PTR(bp))) = NULL; //리스트의 가장 처음에 삽입하므로, prev를 가리키는 포인터를 NULL로 설정하기
 
+    if(free_listp!=NULL){//NULL인경우(빈 블록 리스트가 비어있을 때는 if문 내의 코드를 실행할 필요가 없음.)
+        GET_SUCC(bp) (*(char **)(SUCC_PTR(bp))) = bp;
+    }
+
+    free_listp = bp; //가용 리스트 첫 블록 포인터 갱신
 }
 
 
