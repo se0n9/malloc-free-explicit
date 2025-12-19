@@ -59,18 +59,35 @@ int round_up(int n, int m);
 char *coalesce(char *p);
 
 void insert_node(char *bp){
-    GET_SUCC(bp) (*(char **)(SUCC_PTR(bp))) = free_listp;
-    GET_PRED(bp) (*(char **)(PRED_PTR(bp))) = NULL; //리스트의 가장 처음에 삽입하므로, prev를 가리키는 포인터를 NULL로 설정하기
+    GET_SUCC(bp) = free_listp;
+    GET_PRED(bp) = NULL; //리스트의 가장 처음에 삽입하므로, prev를 가리키는 포인터를 NULL로 설정하기
 
     if(free_listp!=NULL){//NULL인경우(빈 블록 리스트가 비어있을 때는 if문 내의 코드를 실행할 필요가 없음.)
-        GET_SUCC(bp) (*(char **)(SUCC_PTR(bp))) = bp;
+        GET_SUCC(bp) = bp;
     }
 
     free_listp = bp; //가용 리스트 첫 블록 포인터 갱신
 }
 
 
-void delete_node(char *bp);
+void delete_node(char *bp){//prev pointer와, next pointer를 변수에 저장해 놓음.
+    char* prev_bp = GET_SUCC(bp);
+    char* next_bp = GET_SUCC(bp);
+
+    if(GET_PRED(bp)==NULL){
+        free_listp = GET_SUCC(bp); //prev가 NULL이라면(리스트의 처음이라면) free_listp가 next node를 가리키게 설정.
+    }
+    else{//prev가 null이 아니라면, prev가 next를 가리키도록 함.
+        GET_PRED(bp) = next_bp;
+    }
+
+    if(GET_SUCC(bp) == NULL){
+        GET_PRED(bp) = NULL; //next가 NULL이라면 prev를 NULL로 설정하기
+    }
+    else{//next가 NULL이 아니라면, prev node가 next node를 가리키게 설정.
+        GET_SUCC(bp) = prev_bp;
+    }
+}
 
 /* 함수 구현 */
 void init_mem(){
