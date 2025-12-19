@@ -63,7 +63,7 @@ void insert_node(char *bp){
     PUT( PRED_PTR(bp), NULL ); 
 
     if(free_listp!=NULL){//NULL인경우(빈 블록 리스트가 비어있을 때)는 if문 내의 코드를 실행할 필요가 없음.
-        free_listp = bp;//NULL이 아닌 경우 free_listp를 새로 삽입한 노드로 설정함.
+        PUT(PRED_PTR(free_listp), bp);//NULL이 아닌 경우 free_listp를 새로 삽입한 노드로 설정함.
     }
 
     free_listp = bp; //가용 리스트 첫 블록 포인터 갱신
