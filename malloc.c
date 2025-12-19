@@ -44,12 +44,10 @@
 #define GET_PRED(bp) (*(char **)(PRED_PTR(bp)))
 #define GET_SUCC(bp) (*(char **)(SUCC_PTR(bp)))
 
-/* 전역 변수 추가 */
-static char *free_listp; // 가용 리스트의 첫 번째 블록을 가리키는 포인터
-
 /* 전역 변수 설정*/
 static char mem_pool[MEM_SIZE]; // 800 바이트 크기의 정적 메모리 배열
 static char *heap_listp; // 힙의 시작점을 가리킬 포인터
+static char *free_listp; // 가용 리스트의 첫 번째 블록을 가리키는 포인터
 
 typedef int data_t;
 
@@ -57,6 +55,13 @@ static void *find_fit(size_t asize);//함수 프로토타입
 static void place(void *bp, size_t asize);
 int round_up(int n, int m);
 char *coalesce(char *p);
+
+void insert_node(char *bp){
+    
+}
+
+
+void delete_node(char *bp);
 
 /* 함수 구현 */
 void init_mem(){
