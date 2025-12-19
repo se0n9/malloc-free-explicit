@@ -138,21 +138,25 @@ char *coalesce(char *p){
     // Case 1(Default): 앞 할당O, 뒤는 free된 경우
     if(GET_PREV_ALLOC(current_hdrp) == 2 && GET_ALLOC(HDRP(next_bp)) == 1){
         printf("free a block %lu size => No merging.\n", size);
+        insert_node(p);
         return p;
     } 
     // Case 2: 앞 블록은 할당O, 뒤 블록은 free된 경우
     else if(GET_PREV_ALLOC(current_hdrp) == 2 && GET_ALLOC(HDRP(next_bp)) == 0){
+        delete_node(next_bp);
         size_t next_size = GET_SIZE(HDRP(next_bp));
         printf("free a block %lu size => merging next block(%lu) = %lu\n", size, next_size, size+next_size);
         size += next_size; // size += next_size
         prev_alloc = GET_PREV_ALLOC(HDRP(p));
         PUT(current_hdrp, PACK(size, 0, prev_alloc)); // 현재 헤더 위치에 크기 갱신
         PUT(FTRP(next_bp), PACK(size, 0, prev_alloc));
+        insert_node(p);
         return p;
     }
     // Case 3: 앞 블록은 free, 뒤는 할당된 상태인 경우
     else if(GET_PREV_ALLOC(current_hdrp) != 2 && GET_ALLOC(HDRP(next_bp)) == 1){
         char *prev_bp = PREV_BLKP(p);
+        delete_node(prev_bp);
         size_t prev_size = GET_SIZE(HDRP(prev_bp));
         printf("free a block %lu size => merging prev block(%lu) = %lu\n", size, prev_size, size+prev_size);
         size += GET_SIZE(HDRP(prev_bp));
@@ -160,11 +164,14 @@ char *coalesce(char *p){
         PUT(HDRP(prev_bp), PACK(size, 0, prev_alloc)); //이전 블록의 헤더 갱신
         PUT(FTRP(p), PACK(size, 0, prev_alloc)); // 현재 블록의 푸터 갱신
         p = prev_bp; // p를 이전 블록의 페이로드를 가리키도록 갱신
+        insert_node(p);
         return p;
     }
     //Case 4: 앞, 뒤 블록 모두 free되어 있는 경우
     else {
         char *prev_bp = PREV_BLKP(p);
+        delete_node(prev_bp);
+        delete_node(next_bp);
         size_t prev_size = GET_SIZE(HDRP(prev_bp));
         size_t next_size = GET_SIZE(HDRP(next_bp));
         printf("free a block %lu size => merging prev block(%lu) + next block(%lu) = %lu\n", size, prev_size, next_size, size+prev_size+next_size);
@@ -173,6 +180,7 @@ char *coalesce(char *p){
         PUT(HDRP(prev_bp), PACK(size, 0, prev_alloc)); // 이전 블록 헤더 갱신
         PUT(FTRP(next_bp), PACK(size, 0, prev_alloc)); // 다음 블록의 푸터에 전체 크기 쓰기 
         p = (HDRP(prev_bp) + WSIZE);
+        insert_node(p);
         return p; 
     }
 }
